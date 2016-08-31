@@ -272,23 +272,35 @@ class CRM_Relatedcontactingroup_Form_Search_ContactInGroup extends CRM_Contact_F
     $table_name = 'civicrm_temp_related_contact_in_group_'.time();
     $sql = "
     CREATE TEMPORARY TABLE {$table_name} AS
-    SELECT 
+    (SELECT 
       primary_contact.id as primary_contact_id, rel.relationship_type_id as relationship_type_id, related_contact.id as related_contact_id, related_group_contact.group_id as group_id
     FROM
       civicrm_contact primary_contact
     INNER JOIN
-      civicrm_relationship rel ON (rel.contact_id_a = primary_contact.id OR rel.contact_id_b = primary_contact.id) 
+      civicrm_relationship rel ON rel.contact_id_a = primary_contact.id 
     INNER JOIN
-      civicrm_contact related_contact ON 
-        (rel.contact_id_a = primary_contact.id
-        AND rel.contact_id_b = related_contact.id)
-        OR (rel.contact_id_b = primary_contact.id
-        AND rel.contact_id_a = related_contact.id)
+      civicrm_contact related_contact ON rel.contact_id_b = related_contact.id
     INNER JOIN
       civicrm_group_contact related_group_contact ON related_group_contact.contact_id = related_contact.id
     WHERE related_group_contact.status = 'Added' AND related_contact.is_deleted = '0' AND related_group_contact.group_id IN ({$related_group_id})
     AND rel.is_active = '1' AND (rel.start_date IS NULL or rel.start_date <= NOW()) AND (rel.end_date IS NULL OR rel.end_date >= NOW())
     {$relationship_type_clause}
+    )
+    UNION DISTINCT
+    (SELECT 
+      primary_contact.id as primary_contact_id, rel.relationship_type_id as relationship_type_id, related_contact.id as related_contact_id, related_group_contact.group_id as group_id
+    FROM
+      civicrm_contact primary_contact
+    INNER JOIN
+      civicrm_relationship rel ON rel.contact_id_b = primary_contact.id 
+    INNER JOIN
+      civicrm_contact related_contact ON rel.contact_id_a = related_contact.id
+    INNER JOIN
+      civicrm_group_contact related_group_contact ON related_group_contact.contact_id = related_contact.id
+    WHERE related_group_contact.status = 'Added' AND related_contact.is_deleted = '0' AND related_group_contact.group_id IN ({$related_group_id})
+    AND rel.is_active = '1' AND (rel.start_date IS NULL or rel.start_date <= NOW()) AND (rel.end_date IS NULL OR rel.end_date >= NOW())
+    {$relationship_type_clause}
+    )
     ";
 
     CRM_Core_DAO::executeQuery($sql);
